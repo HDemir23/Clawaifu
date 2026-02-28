@@ -11,6 +11,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { CharacterId, CHARACTERS } from "../lib/characters";
+import WalletConnect from "./WalletConnect";
 
 interface InterfaceOverlayProps {
   character: CharacterId;
@@ -120,6 +121,8 @@ const InterfaceOverlay: React.FC<InterfaceOverlayProps> = memo(
             transition={{ duration: 0.8, delay: 0.5 }}
             className="absolute top-3 sm:top-4 md:top-6 right-3 sm:right-4 md:right-6 flex items-center gap-2 sm:gap-3 md:gap-4"
           >
+            <WalletConnect />
+
             <div className="glassmorphism px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 flex items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-1 sm:gap-2">
                 <motion.div
