@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, memo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Grid, ContactShadows, Environment } from "@react-three/drei";
+import { Grid, ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
 
-function WaifuPlaceholder() {
+const WaifuPlaceholder: React.FC = memo(() => {
   const meshRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
@@ -29,9 +29,11 @@ function WaifuPlaceholder() {
       />
     </mesh>
   );
-}
+});
 
-function Scene() {
+WaifuPlaceholder.displayName = "WaifuPlaceholder";
+
+const Scene: React.FC = memo(() => {
   return (
     <>
       <ambientLight intensity={0.2} />
@@ -133,9 +135,11 @@ function Scene() {
       <fog attach="fog" args={["#050505", 5, 20]} />
     </>
   );
-}
+});
 
-const WaifuCanvas: React.FC = () => {
+Scene.displayName = "Scene";
+
+const WaifuCanvas: React.FC = memo(() => {
   return (
     <div className="absolute inset-0 z-0">
       <Canvas
@@ -158,6 +162,8 @@ const WaifuCanvas: React.FC = () => {
       </Canvas>
     </div>
   );
-};
+});
+
+WaifuCanvas.displayName = "WaifuCanvas";
 
 export default WaifuCanvas;
