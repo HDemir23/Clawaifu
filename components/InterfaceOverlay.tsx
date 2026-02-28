@@ -119,7 +119,7 @@ const InterfaceOverlay: React.FC<InterfaceOverlayProps> = memo(
             initial="initial"
             animate="animate"
             transition={{ duration: 0.8, delay: 0.5 }}
-            className="absolute top-3 sm:top-4 md:top-6 right-3 sm:right-4 md:right-6 flex items-center gap-2 sm:gap-3 md:gap-4"
+            className="absolute top-3 sm:top-4 md:top-6 right-3 sm:right-4 md:right-6 flex items-center gap-2 sm:gap-3 md:gap-4 pointer-events-auto"
           >
             <WalletConnect />
 
@@ -173,7 +173,7 @@ const InterfaceOverlay: React.FC<InterfaceOverlayProps> = memo(
             initial="initial"
             animate="animate"
             transition={{ duration: 0.8, delay: 0.9 }}
-            className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-sm sm:max-w-md md:max-w-2xl px-3 sm:px-4"
+            className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-sm sm:max-w-md md:max-w-2xl px-3 sm:px-4 pointer-events-auto"
           >
             <div className="glassmorphism-dark p-3 sm:p-4 md:p-6">
               <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
