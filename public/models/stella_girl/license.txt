@@ -1,0 +1,11 @@
+Model Information:
+* title:	stella girl
+* source:	https://sketchfab.com/3d-models/stella-girl-08f81fedb4224ceab1a0424edde278ba
+* author:	golden4445 (https://sketchfab.com/golden4445)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "stella girl" (https://sketchfab.com/3d-models/stella-girl-08f81fedb4224ceab1a0424edde278ba) by golden4445 (https://sketchfab.com/golden4445) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import BootSequence from "../components/BootSequence";
 import WaifuCanvas from "../components/WaifuCanvas";
 import InterfaceOverlay from "../components/InterfaceOverlay";
+import { CharacterId } from "../lib/characters";
+
 
 const BOOT_EXIT = {
   opacity: 0,
@@ -27,6 +29,7 @@ const CANVAS_TRANSITION = {
 
 export default function Home() {
   const [phase, setPhase] = useState<"boot" | "canvas">("boot");
+  const [character] = useState<CharacterId>("chiku");
 
   const handleBootComplete = useCallback(() => {
     setPhase("canvas");
@@ -57,8 +60,8 @@ export default function Home() {
             transition={CANVAS_TRANSITION}
             className="absolute inset-0"
           >
-            <WaifuCanvas />
-            <InterfaceOverlay />
+            <WaifuCanvas character={character} />
+            <InterfaceOverlay character={character} />
           </motion.div>
         )}
       </AnimatePresence>
