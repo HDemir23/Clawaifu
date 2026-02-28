@@ -17,43 +17,73 @@ The model polls every 150ms, so bones will move almost immediately.
 ## API Reference
 
 ### GET /api/bones/register
-Returns the list of bone names available in the loaded model.
+Returns available bone names from the loaded model.
 ```json
-{ "bones": ["Bone", "Bone.001", "J_Bip_L_UpperArm", ...] }
+{ "bones": ["Head_021", "Neck_020", "UpperarmR_044", ...] }
 ```
 
 ### POST /api/bones
-Enqueues a rotation command for one bone.
+Enqueues a rotation command for one bone. Two modes:
+
+**Absolute** — set exact rotation:
 ```json
-{ "bone": "J_Bip_L_UpperArm", "x": 0.0, "y": 0.0, "z": 1.2 }
+{ "bone": "Head_021", "x": -1.5, "y": -1.4, "z": -1.8 }
 ```
-- `bone`: exact bone name from the registry (case-sensitive)
-- `x`, `y`, `z`: rotation in **radians** — range roughly `-π` to `π` (about `-3.14` to `3.14`)
-- Returns `{ "ok": true, "queued": N }`
+
+**Relative (delta)** — offset from current state (requires frontend to have synced state first):
+```json
+{ "bone": "Head_021", "deltaX": 0.1, "deltaY": 0.0, "deltaZ": -0.05 }
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "queued": 1,
+  "clamped": false,
+  "deltaClamped": false,
+  "target": { "x": -1.5, "y": -1.4, "z": -1.8 }
+}
+```
+- `target` — the rotation **actually applied** (after clamping) — use this to know where the bone ended up
+- `clamped: true` — values hit bone limits; check `target` to see what was allowed
+- `deltaClamped: true` — change was too large (max **0.2 rad per command**); send multiple commands to reach distant targets
+
+### GET /api/bones/state
+Returns the server's current known rotation for all bones.
+```json
+{ "states": { "Head_021": { "x": -1.5, "y": -1.4, "z": -1.8 }, ... } }
+```
+Use this to check where bones are before sending deltas.
 
 ### Reset a bone
-Send `x: 0, y: 0, z: 0` to return it to its rest pose.
+Send `x: 0, y: 0, z: 0` to return it to rest pose.
 
 ---
 
-## Anatomy guide (common VRM/humanoid bones)
+## Chiku bone map with limits
 
-| Body part | Likely bone name patterns |
-|-----------|--------------------------|
-| Upper arm L | `J_Bip_L_UpperArm`, `UpperArm_L`, `mixamorig:LeftArm` |
-| Lower arm L | `J_Bip_L_LowerArm`, `ForeArm_L`, `mixamorig:LeftForeArm` |
-| Hand L | `J_Bip_L_Hand`, `Hand_L` |
-| Upper arm R | `J_Bip_R_UpperArm`, `UpperArm_R`, `mixamorig:RightArm` |
-| Lower arm R | `J_Bip_R_LowerArm`, `ForeArm_R`, `mixamorig:RightForeArm` |
-| Hand R | `J_Bip_R_Hand`, `Hand_R` |
-| Spine | `J_Bip_C_Spine`, `Spine`, `mixamorig:Spine` |
-| Chest | `J_Bip_C_Chest`, `Chest` |
-| Neck | `J_Bip_C_Neck`, `Neck` |
-| Head | `J_Bip_C_Head`, `Head` |
-| Upper leg L | `J_Bip_L_UpperLeg`, `UpLeg_L` |
-| Upper leg R | `J_Bip_R_UpperLeg`, `UpLeg_R` |
+These are the actual bones and their clamped rotation ranges (radians). Values outside these ranges will be silently clamped.
 
-Always use the exact names from the registry — these are illustrative patterns only.
+| Bone name | X range | Y range | Z range |
+|-----------|---------|---------|---------|
+| `Head_021` | −2.3 → −1.0 | −1.7 → −1.2 | −2.4 → −1.0 |
+| `Neck_020` | −0.1 → 0.2 | −0.15 → 0.1 | −0.4 → −0.1 |
+| `Spine_018` | −0.3 → 0.3 | −0.1 → 0.15 | 0.0 → 0.5 |
+| `Spine_1_019` | −0.5 → 0.5 | −0.3 → 0.3 | −0.5 → 0.3 |
+| `ShoulderR_043` | 1.2 → 2.2 | −0.2 → 0.4 | −0.3 → 0.5 |
+| `ShoulderL_067` | 0.7 → 1.8 | −0.2 → 0.3 | −3.2 → 3.2 |
+| `UpperarmR_044` | −3.2 → 3.2 | −0.6 → 1.5 | −3.2 → 3.2 |
+| `UpperarmL_068` | −3.2 → 3.2 | −1.3 → 0.6 | −3.2 → 3.2 |
+| `ForearmR_045` | 0.0 → 2.2 | −0.05 → 0.05 | −0.05 → 0.05 |
+| `ForearmL_069` | 0.0 → 2.2 | −0.05 → 0.05 | −0.05 → 0.05 |
+| `HandR_046` | −2.8 → 0.7 | 0.2 → 1.7 | −0.5 → 2.8 |
+| `ThighR_093` | −1.5 → 0.8 | −0.5 → 0.5 | −0.5 → 0.5 |
+| `ThighL_099` | −1.5 → 0.8 | −0.5 → 0.5 | −0.5 → 0.5 |
+| `CalfR_094` | 0.0 → 2.2 | −0.1 → 0.1 | −0.1 → 0.1 |
+| `CalfL_0100` | 0.0 → 2.2 | −0.1 → 0.1 | −0.1 → 0.1 |
+
+Bones not in this table have no limits enforced. Always use exact names from `/api/bones/register`.
 
 ---
 
