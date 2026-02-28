@@ -47,6 +47,9 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
 
     const { actions, names } = useAnimations(animations, groupRef);
 
+    const [isRecording, setIsRecording] = useState(false);
+    const recordedRangesRef = useRef<Map<string, { min: THREE.Vector3, max: THREE.Vector3 }>>(new Map());
+
     const {
       animationName,
       animationSpeed,
@@ -63,6 +66,31 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
           options: names.length ? names : ["(none)"],
         },
         animationSpeed: { label: "Speed", value: 1, min: 0, max: 3, step: 0.1 },
+      }),
+      "Record Ranges": button(() => {
+        setIsRecording(true);
+        recordedRangesRef.current.clear();
+        const targetBones = [
+          "Head_021", "Neck_020", "Spine_018", "Spine_1_019",
+          "ShoulderR_043", "ShoulderL_067", "UpperarmR_044", "UpperarmL_068",
+          "ForearmR_045", "ForearmL_069", "HandR_046", "HandL_070",
+          "ThighR_093", "ThighL_099", "CalfR_094", "CalfL_0100"
+        ];
+        setTimeout(() => {
+          setIsRecording(false);
+          console.log("--- CLEAN RECORDED RANGES ---");
+          const result: any = {};
+          recordedRangesRef.current.forEach((range, name) => {
+            if (targetBones.includes(name)) {
+              result[name] = {
+                x: [Number(range.min.x.toFixed(3)), Number(range.max.x.toFixed(3))],
+                y: [Number(range.min.y.toFixed(3)), Number(range.max.y.toFixed(3))],
+                z: [Number(range.min.z.toFixed(3)), Number(range.max.z.toFixed(3))],
+              };
+            }
+          });
+          console.log(JSON.stringify(result, null, 2));
+        }, 5000);
       }),
       Head: folder({
         headX: { label: "X", value: 0, min: -0.6, max: 0.6, step: 0.01 },
@@ -324,13 +352,53 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
           });
           console.log(`[clawbot] Queued: ${cmd.bone}`, cmd);
         }
-      }, 150);
+      }, 200);
       return () => clearInterval(id);
     }, [setBoneRot]);
+
+    // Effect 5 — Sync actual bone rotations to server state (source of truth for LLM)
+    useEffect(() => {
+      const id = setInterval(async () => {
+        const states: Record<string, { x: number; y: number; z: number }> = {};
+        boneMapRef.current.forEach((bone, name) => {
+          states[name] = {
+            x: bone.rotation.x,
+            y: bone.rotation.y,
+            z: bone.rotation.z,
+          };
+        });
+        if (Object.keys(states).length > 0) {
+          await fetch("/api/bones/state", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ states }),
+          });
+        }
+      }, 500);
+      return () => clearInterval(id);
+    }, []);
 
     // Per-frame: bob + head bone + morph targets + selected bone rotation
     useFrame((state) => {
       if (!groupRef.current) return;
+
+      if (isRecording) {
+        scene.traverse((o) => {
+          if (o.type === "Bone") {
+            const range = recordedRangesRef.current.get(o.name) || {
+              min: new THREE.Vector3(Infinity, Infinity, Infinity),
+              max: new THREE.Vector3(-Infinity, -Infinity, -Infinity),
+            };
+            range.min.x = Math.min(range.min.x, o.rotation.x);
+            range.min.y = Math.min(range.min.y, o.rotation.y);
+            range.min.z = Math.min(range.min.z, o.rotation.z);
+            range.max.x = Math.max(range.max.x, o.rotation.x);
+            range.max.y = Math.max(range.max.y, o.rotation.y);
+            range.max.z = Math.max(range.max.z, o.rotation.z);
+            recordedRangesRef.current.set(o.name, range);
+          }
+        });
+      }
 
       if (enableBob)
         groupRef.current.position.y =
@@ -356,6 +424,29 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
           m.morphTargetInfluences[d["smile"]] = smileAmount;
         if (d["browRaiser"] !== undefined)
           m.morphTargetInfluences[d["browRaiser"]] = browAmount;
+      });
+
+      // Interpolate bone rotations towards targets (LLM commands override animation)
+      const lerpFactor = 0.04;
+      const animationBlendFactor = 0.3;
+      targetRotationsRef.current.forEach((target, boneName) => {
+        const bone = boneMapRef.current.get(boneName);
+        if (!bone) return;
+        bone.rotation.x = THREE.MathUtils.lerp(
+          bone.rotation.x,
+          target.x,
+          lerpFactor,
+        );
+        bone.rotation.y = THREE.MathUtils.lerp(
+          bone.rotation.y,
+          target.y,
+          lerpFactor,
+        );
+        bone.rotation.z = THREE.MathUtils.lerp(
+          bone.rotation.z,
+          target.z,
+          lerpFactor,
+        );
       });
 
       // Selected bone rotation
