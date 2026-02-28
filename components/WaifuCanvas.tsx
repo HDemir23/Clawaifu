@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, memo, Suspense, useEffect, useState, useCallback } from "react";
+import { useRef, memo, Suspense, useEffect, useState, useCallback, useMemo } from "react";
 import { Canvas, useFrame, ThreeEvent } from "@react-three/fiber";
 import { Grid, ContactShadows, useGLTF, OrbitControls, useAnimations } from "@react-three/drei";
 import * as THREE from "three";
@@ -24,6 +24,8 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(({ characterId, onBoneClick }
   const highlightedMeshRef = useRef<THREE.Mesh | null>(null);
   const originalEmissiveRef = useRef(new THREE.Color(0, 0, 0));
   const selectedBoneRef = useRef<THREE.Object3D | null>(null);
+  const boneMapRef = useRef<Map<string, THREE.Object3D>>(new Map());
+  const origColorsRef = useRef<Map<THREE.Material, THREE.Color>>(new Map());
 
   const { actions, names } = useAnimations(animations, groupRef);
 
@@ -35,6 +37,7 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(({ characterId, onBoneClick }
     smileAmount,
     browAmount,
     enableBob,
+    colorTint,
   } = useControls("Character Controls", {
     Animation: folder({
       animationName: { label: "Clip", options: names.length ? names : ["(none)"] },
@@ -49,6 +52,7 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(({ characterId, onBoneClick }
       browAmount:  { label: "Brow Raise", value: 0, min: 0, max: 1, step: 0.01 },
     }),
     enableBob: { label: "Float Bob", value: true },
+    colorTint: { label: "Color Tint", value: "#836EF9" },
     "Log Bones": button(() => {
       scene.traverse((o) => {
         if (o.type === "Bone") console.log("BONE:", o.name);
@@ -63,14 +67,25 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(({ characterId, onBoneClick }
     }),
   });
 
+  const boneNames = useMemo(() => {
+    const ns: string[] = [];
+    scene.traverse((o) => { if (o.type === "Bone" && o.name) ns.push(o.name); });
+    return ns.sort();
+  }, [scene]);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [{ boneRotX, boneRotY, boneRotZ }, setBoneRot] = useControls(() => ({
+  const [{ boneRotX, boneRotY, boneRotZ, selectedBoneName }, setBoneRot] = useControls(() => ({
     "Selected Bone": folder({
+      selectedBoneName: {
+        label: "Bone",
+        value: boneNames[0] ?? "",
+        options: boneNames.length ? boneNames : ["(no bones)"],
+      },
       boneRotX: { label: "Rot X", value: 0, min: -Math.PI, max: Math.PI, step: 0.01 },
       boneRotY: { label: "Rot Y", value: 0, min: -Math.PI, max: Math.PI, step: 0.01 },
       boneRotZ: { label: "Rot Z", value: 0, min: -Math.PI, max: Math.PI, step: 0.01 },
     }),
-  })) as unknown as [{ boneRotX: number; boneRotY: number; boneRotZ: number }, (v: Record<string, number>) => void];
+  })) as unknown as [{ boneRotX: number; boneRotY: number; boneRotZ: number; selectedBoneName: string }, (v: Record<string, number | string>) => void];
 
   const handleClick = useCallback((event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
@@ -162,6 +177,76 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(({ characterId, onBoneClick }
     group.position.set(-center.x, -sMin.y, -center.z);
     baseYRef.current = group.position.y;
   }, [scene]);
+
+  // Effect 1 — Scene load: populate boneMap, register bones, store original colors
+  useEffect(() => {
+    const boneMap = boneMapRef.current;
+    boneMap.clear();
+    scene.traverse((o) => {
+      if (o.type === "Bone" && o.name) boneMap.set(o.name, o);
+    });
+
+    const names = Array.from(boneMap.keys());
+    fetch("/api/bones/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bones: names }),
+    }).then(() => {
+      console.log(`[clawbot] Registered ${names.length} bones`);
+    });
+
+    const origColors = origColorsRef.current;
+    origColors.clear();
+    scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const mats = Array.isArray(m.material) ? m.material : [m.material];
+      for (const mat of mats) {
+        if ((mat as THREE.MeshStandardMaterial).color && !origColors.has(mat)) {
+          origColors.set(mat, (mat as THREE.MeshStandardMaterial).color.clone());
+        }
+      }
+    });
+
+    return () => { origColorsRef.current.clear(); };
+  }, [scene]);
+
+  // Effect 2 — Color tint
+  useEffect(() => {
+    if (origColorsRef.current.size === 0) return;
+    const tint = new THREE.Color(colorTint);
+    origColorsRef.current.forEach((origColor, mat) => {
+      (mat as THREE.MeshStandardMaterial).color.copy(origColor).multiply(tint);
+      (mat as THREE.MeshStandardMaterial).needsUpdate = true;
+    });
+  }, [colorTint]);
+
+  // Effect 3 — Named bone select sync
+  useEffect(() => {
+    if (!selectedBoneName || selectedBoneName === "(no bones)") return;
+    const bone = boneMapRef.current.get(selectedBoneName);
+    if (bone) {
+      selectedBoneRef.current = bone;
+      setBoneRot({ boneRotX: 0, boneRotY: 0, boneRotZ: 0 });
+    }
+  }, [selectedBoneName, setBoneRot]);
+
+  // Effect 4 — Polling for LLM bone commands
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const res = await fetch("/api/bones");
+      const { commands } = await res.json();
+      for (const cmd of commands) {
+        const bone = boneMapRef.current.get(cmd.bone);
+        if (!bone) { console.warn(`[clawbot] Unknown bone: "${cmd.bone}"`); continue; }
+        bone.rotation.set(cmd.x, cmd.y, cmd.z);
+        if (selectedBoneRef.current === bone)
+          setBoneRot({ boneRotX: cmd.x, boneRotY: cmd.y, boneRotZ: cmd.z });
+        console.log(`[clawbot] Applied: ${cmd.bone}`, cmd);
+      }
+    }, 150);
+    return () => clearInterval(id);
+  }, [setBoneRot]);
 
   // Per-frame: bob + head bone + morph targets + selected bone rotation
   useFrame((state) => {
