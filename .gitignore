@@ -47,12 +47,6 @@ next-env.d.ts
 *.swp
 *.swo
 
-# Three.js
-*.glb
-*.gltf
-*.obj
-*.fbx
-
 # LLM Agents
 AGENTS.md
 CLAUDE.md
