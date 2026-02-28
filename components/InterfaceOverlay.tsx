@@ -112,7 +112,7 @@ const InterfaceOverlay: React.FC<InterfaceOverlayProps> = memo(
 
     return (
       <div className="absolute inset-0 z-10 pointer-events-none">
-        <div className="w-full h-full pointer-events-auto">
+        <div className="w-full h-full pointer-events-none">
           <motion.div
             variants={STATUS_VARIANTS}
             initial="initial"
