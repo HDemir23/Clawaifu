@@ -138,7 +138,7 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
         },
       }),
       enableBob: { label: "Float Bob", value: true },
-      colorTint: { label: "Color Tint", value: "#836EF9" },
+      colorTint: { label: "Color Tint", value: "#c900fe" },
       "Log Bones": button(() => {
         scene.traverse((o) => {
           if (o.type === "Bone") console.log("BONE:", o.name);
