@@ -36,11 +36,19 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
     const { scene, animations } = useGLTF(CHARACTERS[characterId].path);
     const groupRef = useRef<THREE.Group>(null);
     const baseYRef = useRef(0);
-    const highlightedMeshRef = useRef<THREE.Mesh | null>(null);
-    const originalEmissiveRef = useRef(new THREE.Color(0, 0, 0));
+    const highlightStateRef = useRef<
+      Map<
+        THREE.Mesh,
+        {
+          emissive: THREE.Color;
+          emissiveIntensity: number;
+        }
+      >
+    >(new Map());
     const selectedBoneRef = useRef<THREE.Object3D | null>(null);
     const boneMapRef = useRef<Map<string, THREE.Object3D>>(new Map());
     const origColorsRef = useRef<Map<THREE.Material, THREE.Color>>(new Map());
+    const [origColorsReady, setOrigColorsReady] = useState(false);
     const targetRotationsRef = useRef<
       Map<string, { x: number; y: number; z: number }>
     >(new Map());
@@ -48,7 +56,9 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
     const { actions, names } = useAnimations(animations, groupRef);
 
     const [isRecording, setIsRecording] = useState(false);
-    const recordedRangesRef = useRef<Map<string, { min: THREE.Vector3, max: THREE.Vector3 }>>(new Map());
+    const recordedRangesRef = useRef<
+      Map<string, { min: THREE.Vector3; max: THREE.Vector3 }>
+    >(new Map());
 
     const {
       animationName,
@@ -71,10 +81,22 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
         setIsRecording(true);
         recordedRangesRef.current.clear();
         const targetBones = [
-          "Head_021", "Neck_020", "Spine_018", "Spine_1_019",
-          "ShoulderR_043", "ShoulderL_067", "UpperarmR_044", "UpperarmL_068",
-          "ForearmR_045", "ForearmL_069", "HandR_046", "HandL_070",
-          "ThighR_093", "ThighL_099", "CalfR_094", "CalfL_0100"
+          "Head_021",
+          "Neck_020",
+          "Spine_018",
+          "Spine_1_019",
+          "ShoulderR_043",
+          "ShoulderL_067",
+          "UpperarmR_044",
+          "UpperarmL_068",
+          "ForearmR_045",
+          "ForearmL_069",
+          "HandR_046",
+          "HandL_070",
+          "ThighR_093",
+          "ThighL_099",
+          "CalfR_094",
+          "CalfL_0100",
         ];
         setTimeout(() => {
           setIsRecording(false);
@@ -83,9 +105,18 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
           recordedRangesRef.current.forEach((range, name) => {
             if (targetBones.includes(name)) {
               result[name] = {
-                x: [Number(range.min.x.toFixed(3)), Number(range.max.x.toFixed(3))],
-                y: [Number(range.min.y.toFixed(3)), Number(range.max.y.toFixed(3))],
-                z: [Number(range.min.z.toFixed(3)), Number(range.max.z.toFixed(3))],
+                x: [
+                  Number(range.min.x.toFixed(3)),
+                  Number(range.max.x.toFixed(3)),
+                ],
+                y: [
+                  Number(range.min.y.toFixed(3)),
+                  Number(range.max.y.toFixed(3)),
+                ],
+                z: [
+                  Number(range.min.z.toFixed(3)),
+                  Number(range.max.z.toFixed(3)),
+                ],
               };
             }
           });
@@ -175,18 +206,22 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
       (event: ThreeEvent<MouseEvent>) => {
         event.stopPropagation();
 
-        // Restore emissive on previously highlighted mesh
-        if (highlightedMeshRef.current) {
-          const prevMat = highlightedMeshRef.current.material;
-          if (
-            prevMat instanceof THREE.MeshStandardMaterial ||
-            prevMat instanceof THREE.MeshPhysicalMaterial
-          ) {
-            prevMat.emissive.copy(originalEmissiveRef.current);
-            prevMat.emissiveIntensity = 0;
+        // Restore emissive on all previously highlighted meshes
+        highlightStateRef.current.forEach((state, mesh) => {
+          const mats = Array.isArray(mesh.material)
+            ? mesh.material
+            : [mesh.material];
+          for (const mat of mats) {
+            if (
+              mat instanceof THREE.MeshStandardMaterial ||
+              mat instanceof THREE.MeshPhysicalMaterial
+            ) {
+              mat.emissive.copy(state.emissive);
+              mat.emissiveIntensity = state.emissiveIntensity;
+            }
           }
-          highlightedMeshRef.current = null;
-        }
+        });
+        highlightStateRef.current.clear();
 
         const clicked = event.object as THREE.Mesh;
 
@@ -202,16 +237,22 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
           node = node.parent;
         }
 
-        // Highlight clicked mesh
-        const mat = clicked.material;
-        if (
-          mat instanceof THREE.MeshStandardMaterial ||
-          mat instanceof THREE.MeshPhysicalMaterial
-        ) {
-          originalEmissiveRef.current.copy(mat.emissive);
-          mat.emissive.set(0x00ffff);
-          mat.emissiveIntensity = 0.4;
-          highlightedMeshRef.current = clicked;
+        // Highlight clicked mesh - handle material arrays
+        const mats = Array.isArray(clicked.material)
+          ? clicked.material
+          : [clicked.material];
+        for (const mat of mats) {
+          if (
+            mat instanceof THREE.MeshStandardMaterial ||
+            mat instanceof THREE.MeshPhysicalMaterial
+          ) {
+            highlightStateRef.current.set(clicked, {
+              emissive: mat.emissive.clone(),
+              emissiveIntensity: mat.emissiveIntensity,
+            });
+            mat.emissive.set(0x00ffff);
+            mat.emissiveIntensity = 0.4;
+          }
         }
 
         // Reset bone rotation sliders
@@ -309,8 +350,16 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
 
       return () => {
         origColorsRef.current.clear();
+        setOrigColorsReady(false);
       };
     }, [scene]);
+
+    // Signal when origColors are ready
+    useEffect(() => {
+      if (origColorsRef.current.size > 0 && !origColorsReady) {
+        setOrigColorsReady(true);
+      }
+    }, [origColorsReady]);
 
     // Effect 2 — Color tint
     useEffect(() => {
@@ -320,9 +369,29 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
         (mat as THREE.MeshStandardMaterial).color
           .copy(origColor)
           .multiply(tint);
-        (mat as THREE.MeshStandardMaterial).needsUpdate = true;
       });
-    }, [colorTint]);
+    }, [colorTint, origColorsReady]);
+
+    // Cleanup: restore highlighted meshes on unmount
+    useEffect(() => {
+      return () => {
+        highlightStateRef.current.forEach((state, mesh) => {
+          const mats = Array.isArray(mesh.material)
+            ? mesh.material
+            : [mesh.material];
+          for (const mat of mats) {
+            if (
+              mat instanceof THREE.MeshStandardMaterial ||
+              mat instanceof THREE.MeshPhysicalMaterial
+            ) {
+              mat.emissive.copy(state.emissive);
+              mat.emissiveIntensity = state.emissiveIntensity;
+            }
+          }
+        });
+        highlightStateRef.current.clear();
+      };
+    }, []);
 
     // Effect 3 — Named bone select sync
     useEffect(() => {
