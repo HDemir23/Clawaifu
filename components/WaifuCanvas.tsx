@@ -36,6 +36,7 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
     const { scene, animations } = useGLTF(CHARACTERS[characterId].path);
     const groupRef = useRef<THREE.Group>(null);
     const baseYRef = useRef(0);
+    const lastClickTimeRef = useRef(0);
     const highlightStateRef = useRef<
       Map<
         THREE.Mesh,
@@ -205,6 +206,9 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
     const handleClick = useCallback(
       (event: ThreeEvent<MouseEvent>) => {
         event.stopPropagation();
+        const now = Date.now();
+        if (now - lastClickTimeRef.current < 300) return;
+        lastClickTimeRef.current = now;
 
         // Restore emissive on all previously highlighted meshes
         highlightStateRef.current.forEach((state, mesh) => {
@@ -527,7 +531,11 @@ const WaifuModel: React.FC<WaifuModelProps> = memo(
     });
 
     return (
-      <group ref={groupRef} onClick={handleClick}>
+      <group
+        ref={groupRef}
+        onClick={handleClick}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
         <primitive object={scene} dispose={null} />
       </group>
     );
