@@ -1,0 +1,265 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --hacker-green: #00ff41;
+  --cyber-cyan: #00ffff;
+  --cyber-magenta: #ff00ff;
+  --terminal-black: #050505;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #050505;
+  color: var(--hacker-green);
+  font-family: "JetBrains Mono", "Fira Code", "Consolas", "Monaco", monospace;
+}
+
+@layer components {
+  .crt-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.15) 0px,
+      rgba(0, 0, 0, 0.15) 1px,
+      transparent 1px,
+      transparent 2px
+    );
+  }
+
+  .crt-overlay::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(
+      ellipse at center,
+      transparent 0%,
+      rgba(0, 0, 0, 0.3) 80%,
+      rgba(0, 0, 0, 0.6) 100%
+    );
+  }
+
+  .crt-overlay::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      to bottom,
+      transparent 50%,
+      rgba(0, 255, 65, 0.02) 50%
+    );
+    background-size: 100% 4px;
+    animation: scanline 8s linear infinite;
+  }
+
+  @keyframes scanline {
+    0% {
+      transform: translateY(-100%);
+    }
+    100% {
+      transform: translateY(100%);
+    }
+  }
+
+  .glow-text {
+    text-shadow:
+      0 0 5px currentColor,
+      0 0 10px currentColor,
+      0 0 20px currentColor,
+      0 0 40px currentColor;
+  }
+
+  .glow-text-subtle {
+    text-shadow:
+      0 0 2px currentColor,
+      0 0 5px currentColor,
+      0 0 10px currentColor;
+  }
+
+  .glow-box {
+    box-shadow:
+      0 0 5px currentColor,
+      0 0 10px currentColor,
+      0 0 20px currentColor,
+      inset 0 0 5px currentColor;
+  }
+
+  .terminal-text {
+    color: var(--hacker-green);
+    text-shadow:
+      0 0 2px var(--hacker-green),
+      0 0 5px var(--hacker-green),
+      0 0 10px rgba(0, 255, 65, 0.5);
+    letter-spacing: 0.05em;
+  }
+
+  .terminal-text-cyan {
+    color: var(--cyber-cyan);
+    text-shadow:
+      0 0 2px var(--cyber-cyan),
+      0 0 5px var(--cyber-cyan),
+      0 0 10px rgba(0, 255, 255, 0.5);
+  }
+
+  .terminal-text-magenta {
+    color: var(--cyber-magenta);
+    text-shadow:
+      0 0 2px var(--cyber-magenta),
+      0 0 5px var(--cyber-magenta),
+      0 0 10px rgba(255, 0, 255, 0.5);
+  }
+
+  .glassmorphism {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+  }
+
+  .glassmorphism-dark {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+  }
+
+  .neon-border {
+    border: 1px solid currentColor;
+    box-shadow:
+      0 0 5px currentColor,
+      0 0 10px currentColor,
+      inset 0 0 5px rgba(255, 255, 255, 0.1);
+  }
+
+  .progress-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .progress-bar-track {
+    display: inline-block;
+    width: 200px;
+    height: 20px;
+    background: rgba(0, 255, 65, 0.1);
+    border: 1px solid var(--hacker-green);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--hacker-green);
+    box-shadow: 0 0 10px var(--hacker-green);
+    transition: width 0.1s ease;
+  }
+
+  .blink-cursor::after {
+    content: "█";
+    animation: blink 1s step-end infinite;
+    margin-left: 2px;
+  }
+
+  @keyframes blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0;
+    }
+  }
+
+  .flicker {
+    animation: flicker 0.15s infinite;
+  }
+
+  @keyframes flicker {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+}
+
+@layer utilities {
+  .text-shadow-glow {
+    text-shadow:
+      0 0 10px currentColor,
+      0 0 20px currentColor,
+      0 0 30px currentColor;
+  }
+
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient 3s ease infinite;
+  }
+
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+}
+
+canvas {
+  display: block;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hacker-green);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cyber-cyan);
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+input:focus {
+  outline: none;
+}
